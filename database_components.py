@@ -70,16 +70,34 @@ class DatabaseComponents:
         data = obj['stocks']
         return data
     
-    def get_most_traded(self, br_tickers_raw:None,
+    def get_most_traded(self, br_tickers_raw=None,
                     maximum_date=None, 
                     previous_days_to_consider: int = 30, 
-                    number_of_tickers: int = 100):
+                    number_of_tickers: int = 100,
+                    filter:bool=True):
         if maximum_date is None:
             maximum_date = pd.to_datetime(date.today())
         open_date = maximum_date - timedelta(days=previous_days_to_consider)
         if br_tickers_raw is None:
             br_tickers_raw = self.get_brazilian_tickers()
-        br_tickers = [ticker + ".SA" for ticker in br_tickers_raw]
+        tickers_filtered =[]
+        if filter:
+            for ticker in br_tickers_raw:
+                try:
+                    is_ETF_BDR = int(ticker[-2:])
+                    is_ETF_BDR = True
+                except:
+                    is_ETF_BDR = False
+                try:
+                    is_available = int(ticker[-1])
+                    is_available = True
+                except:
+                    is_available = False
+                if (not is_ETF_BDR) and is_available:
+                    tickers_filtered.append(ticker)
+        else:
+            tickers_filtered = br_tickers_raw          
+        br_tickers = [ticker + ".SA" for ticker in tickers_filtered]
         df = yf.download(br_tickers, start=open_date,
                         end=maximum_date, progress=False)
         volume_info = dict(df['Volume'].sum())
