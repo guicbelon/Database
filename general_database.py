@@ -238,12 +238,14 @@ class Database(DatabaseComponents, metaclass = Singleton):
             ticker_to_fetch, period=f"{str(days_to_seek)}d", progress=False)
         data = data.rename(
             columns={'Open': ticker+'_open', 'High': ticker + '_high',
-                     'Low': ticker + '_low', 'Close': ticker + '_close',
-                     'Volume': ticker + '_volume'})
+                        'Low': ticker + '_low', 'Close': ticker + '_close',
+                        'Volume': ticker + '_volume'})
         data.index.names = ['date']
         data = data.tz_localize(None)
+        data.index = pd.to_datetime(data.index)
         data = data[[ticker+'_close', ticker+'_open',
-                     ticker+'_high', ticker+'_low', ticker+'_volume']]
+                        ticker+'_high', ticker+'_low', ticker+'_volume']]
+        data = data.loc[open_date:close_date]
         self._DATA = pd.concat([data, self._DATA], axis=1)
 
     def _check_index(self, ticker):
@@ -376,7 +378,6 @@ class Database(DatabaseComponents, metaclass = Singleton):
                                        ticker+'_volume']
             else:
                 tickers_to_display += [ticker+'_'+info]
-                
         try:
             info_to_return = self._DATA[tickers_to_display].loc[open_date:close_date]
         except:
