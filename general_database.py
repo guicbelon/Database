@@ -376,7 +376,12 @@ class Database(DatabaseComponents, metaclass = Singleton):
                                        ticker+'_volume']
             else:
                 tickers_to_display += [ticker+'_'+info]
-        info_to_return = self._DATA[tickers_to_display].loc[open_date:close_date]
+                
+        try:
+            info_to_return = self._DATA[tickers_to_display].loc[open_date:close_date]
+        except:
+            info_to_return = self._DATA[tickers_to_display].dropna()
+            info_to_return = info_to_return.loc[open_date:close_date]
         if len(info_to_return) == 0:
             raise Exception("""No data found for {}!""".format(tickers))
         return info_to_return
