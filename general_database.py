@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import json
 from bcb import sgs as sgs_bcb
+from .info import *
 from .singleton import Singleton
 from .database_components import DatabaseComponents
 
@@ -18,43 +19,6 @@ class Database(DatabaseComponents, metaclass = Singleton):
             'close': close_date
         }
         self._seeken_dates[ticker] = dct_dates
-
-    def _fetch_selic(self, open_date, close_date):
-        open_date_day = str(open_date.day)
-        if len(open_date_day) == 1:
-            open_date_day = '0' + open_date_day
-        open_date_month = str(open_date.month)
-        if len(open_date_month) == 1:
-            open_date_month = '0' + open_date_month
-        close_date_day = str(close_date.day)
-        if len(close_date_day) == 1:
-            close_date_day = '0' + close_date_day
-        close_date_month = str(close_date.month)
-        if len(close_date_month) == 1:
-            close_date_month = '0' + close_date_month
-        open_date_string = (open_date_day+'%2F' +
-                            open_date_month+'%2F'+(str(open_date.year)))
-        close_date_string = (close_date_day+'%2F' +
-                             close_date_month+'%2F'+(str(close_date.year)))
-        url_request = ("""https://brapi.dev/api/v2/prime-rate?country=brazil&historical=true&start={}&end={}&sortBy=date&sortOrder=asc"""
-                       ).format(open_date_string, close_date_string)
-        rqst = requests.get(url_request)
-        obj = json.loads(rqst.text)
-        data = obj['prime-rate']
-        dates = []
-        selic = []
-        for daily_data in data:
-            dates.append(daily_data['date'])
-            selic.append(float(daily_data['value']))
-        dates = pd.to_datetime(dates, format="%d/%m/%Y")
-        info_dct = {
-            'date': dates,
-            'SELIC_close': selic
-        }
-        df = pd.DataFrame(info_dct)
-        df = df.set_index('date')
-        df = df.loc[open_date:close_date]
-        self._DATA = pd.concat([df, self._DATA], axis=1)
 
     def _fetch_CDI(self, open_date, close_date):
         open_str = open_date.strftime('%d/%m/%Y')
@@ -130,9 +94,9 @@ class Database(DatabaseComponents, metaclass = Singleton):
         df = df.loc[open_date:close_date]
         self._DATA = pd.concat([df, self._DATA], axis=1)
 
-    def _fetch_IPCA_IGPM(self, ticker, open_date, close_date):
-        info = {'IPCA': 433, 'IGPM': 189}
-        code = info[ticker]
+        
+    def _fetch_sgs(self, ticker, open_date, close_date):
+        code = sgs_info[ticker]
         df = sgs_bcb.get(code, start=open_date, end=close_date)
         raw_date_range = pd.date_range(
             start=open_date, end=close_date+timedelta(days=1))
@@ -238,14 +202,12 @@ class Database(DatabaseComponents, metaclass = Singleton):
             ticker_to_fetch, period=f"{str(days_to_seek)}d", progress=False)
         data = data.rename(
             columns={'Open': ticker+'_open', 'High': ticker + '_high',
-                        'Low': ticker + '_low', 'Close': ticker + '_close',
-                        'Volume': ticker + '_volume'})
+                     'Low': ticker + '_low', 'Close': ticker + '_close',
+                     'Volume': ticker + '_volume'})
         data.index.names = ['date']
         data = data.tz_localize(None)
-        data.index = pd.to_datetime(data.index)
         data = data[[ticker+'_close', ticker+'_open',
-                        ticker+'_high', ticker+'_low', ticker+'_volume']]
-        data = data.loc[open_date:close_date]
+                     ticker+'_high', ticker+'_low', ticker+'_volume']]
         self._DATA = pd.concat([data, self._DATA], axis=1)
 
     def _check_index(self, ticker):
@@ -268,12 +230,10 @@ class Database(DatabaseComponents, metaclass = Singleton):
         is_currency = len(ticker.split('/')) > 1
         if is_currency:
             info_dct['currencies'] = True
-        is_selic = ticker_splitted[-1] == 'SELIC'
         is_cdi = ticker_splitted[-1] == 'CDI'
-        is_ipca = ticker_splitted[-1] == 'IPCA'
-        is_igpm = ticker_splitted[-1] == 'IGPM'
         is_pib = ticker_splitted[-1] == 'PIBBR'
-        if is_selic or is_cdi or is_ipca or is_igpm or is_currency or is_pib:
+        is_sgs = ticker_splitted[-1] in sgs_info
+        if is_cdi or is_currency or is_pib or is_sgs:
             info_dct['get_prices'] = False
         return info_dct
 
@@ -329,14 +289,12 @@ class Database(DatabaseComponents, metaclass = Singleton):
             self._fetch_prices(ticker, open_date, close_date)
         if ticker_data['currencies']:
             self._fetch_currencies(ticker, open_date, close_date)
-        if ticker_data['ticker'] == 'SELIC':
-            self._fetch_selic(open_date, close_date)
         elif ticker_data['ticker'] == 'CDI':
             self._fetch_CDI(open_date, close_date)
-        elif ticker_data['ticker'] == 'IPCA' or ticker_data['ticker'] == 'IGPM':
-            self._fetch_IPCA_IGPM(ticker_data['ticker'], open_date, close_date)
         elif ticker_data['ticker'] == 'PIBBR':
             self._fetch_PIB_BR(open_date, close_date)
+        elif ticker_data['ticker'] in sgs_info:
+            self._fetch_sgs(ticker_data['ticker'], open_date, close_date)
         df = None
         data = self._DATA[[ticker+'_close']].dropna()
         if ticker_data['transf'] == 'VOL':
@@ -378,6 +336,7 @@ class Database(DatabaseComponents, metaclass = Singleton):
                                        ticker+'_volume']
             else:
                 tickers_to_display += [ticker+'_'+info]
+                
         try:
             info_to_return = self._DATA[tickers_to_display].loc[open_date:close_date]
         except:
