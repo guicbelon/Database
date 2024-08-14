@@ -1,4 +1,4 @@
-sgs_info = {
+SGS_INFO = {
     "SELIC": 11,
     "INPC": 188,
     "IPCA": 433,

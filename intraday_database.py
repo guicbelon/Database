@@ -10,6 +10,20 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         self._seeken_dates = {}
 
     def _add_seeken_dates(self, ticker, open_date, close_date, interval):
+        """
+        Adds the date range and interval for a ticker to the _seeken_dates dictionary.
+
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol for the asset.
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        """
         dct_dates = {
             'start': open_date,
             'close': close_date,
@@ -18,6 +32,25 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         self._seeken_dates[ticker] = dct_dates
 
     def _fetch_yf(self, ticker: str, interval, open_date, close_date):
+        """
+        Fetches data from Yahoo Finance for the specified ticker, date range, and interval.
+        
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol for the asset.
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+
+        Returns
+        -------
+        bool
+            True if data is successfully fetched, False otherwise.
+        """
         ticker_yf = ticker+'.SA'
         if ticker == 'IBOV':
             ticker_yf = "^BVSP"
@@ -48,6 +81,25 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         return True
 
     def _fetch_prices(self, ticker, interval, open_date, close_date):
+        """
+        Fetches the price data for the given ticker and raises an exception if no data is found.
+        
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol for the asset.
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+
+        Raises
+        ------
+        Exception
+            If no data is found for the specified ticker.
+        """
         data_to_fetch = {
             'ticker': ticker,
             'interval': interval,
@@ -59,6 +111,20 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
             raise Exception("""No data found for {}!""".format(ticker))
 
     def _fetch_currencies(self, ticker, interval, open_date, close_date):
+        """
+        Fetches currency exchange data for the specified ticker.
+        
+        Parameters
+        ----------
+        ticker : str
+            The currency pair symbol (e.g., 'USD/BRL').
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+        """
         splited_ticker = ticker.split('/')
         ticker_to_fetch = splited_ticker[0]+splited_ticker[1]+'=X'
         days_to_seek = (pd.to_datetime(date.today()) - open_date).days + 10
@@ -75,6 +141,20 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         self._DATA = pd.concat([data, self._DATA], axis=1)
 
     def _check_index(self, ticker):
+        """
+        Analyzes the ticker and returns a dictionary with relevant information about it.
+        
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol or currency pair.
+
+        Returns
+        -------
+        dict
+            A dictionary containing information about the ticker, such as whether it 
+            is a currency, if transformations are needed, and other relevant details.
+        """
         info_dct = {'ticker': ticker, 'transf': None,
                     'get_prices': True, 'previous_days': None, 'currencies': False}
         ticker_splitted = ticker.split('_')
@@ -99,6 +179,26 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         return info_dct
 
     def _allow_changes(self, ticker, interval, open_date, close_date):
+        """
+        Determines whether changes are needed for the specified ticker based on 
+        the existing data and the requested date range and interval.
+        
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol for the asset.
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+
+        Returns
+        -------
+        dict
+            A dictionary indicating whether changes are needed and the updated date range.
+        """
         ticker_data = self._check_index(ticker)
         if ticker_data['previous_days'] is not None:
             open_date = pd.to_datetime(
@@ -140,6 +240,20 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         return {'changes': True, 'open_date': open_date, 'close_date': close_date}
 
     def _add_assets(self, ticker: str, interval: str, open_date, close_date):
+         """
+        Adds the data for a specific asset to the database, applying necessary transformations.
+
+        Parameters
+        ----------
+        ticker : str
+            The ticker symbol for the asset.
+        interval : str
+            The data interval (e.g., '1m', '5m').
+        open_date : datetime
+            The start date of the data range.
+        close_date : datetime
+            The end date of the data range.
+        """
         changes_data = self._allow_changes(
             ticker, interval, open_date, close_date)
         if not changes_data['changes']:
@@ -173,6 +287,29 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
                  open_date: str = None,
                  close_date: str = None,
                  info='close' or 'ohlcv'):
+        """
+        Retrieves the requested information for the specified tickers.
+        
+        Returns the data within the given date range and interval.
+
+        Parameters
+        ----------
+        tickers : str or list
+            The ticker(s) for which information is requested.
+        interval : str, optional
+            The data interval (default is '1m').
+        open_date : str, optional
+            The start date of the data range (default is None).
+        close_date : str, optional
+            The end date of the data range (default is None).
+        info : str, optional
+            The type of information requested (default is 'close' or 'ohlcv').
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the requested data.
+        """
         today = pd.to_datetime(date.today())
         if close_date is None:
             close_date = today
@@ -206,9 +343,15 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         return info_to_return
 
     def reset(self):
+        """
+        Resets the database by clearing all data and the _seeken_dates dictionary.
+        """
         self._DATA = pd.DataFrame()
         self._seeken_dates = {}
 
     @property
     def data(self):
+        """
+        Returns the current state of the _DATA DataFrame.
+        """
         return self._DATA
