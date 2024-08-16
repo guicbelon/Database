@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 from .singleton import Singleton
 from .database_components import *
+from .info import *
 
 class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
     def __init__(self)-> None:
@@ -27,7 +28,7 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         dct_dates = {
             'start': open_date,
             'close': close_date,
-            interval: interval
+            "interval": interval
         }
         self._seeken_dates[ticker] = dct_dates
 
@@ -108,6 +109,7 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         }
         yahoo = self._fetch_yf(**data_to_fetch)
         if not yahoo:
+            self._seeken_dates.pop(ticker)
             raise Exception("""No data found for {}!""".format(ticker))
 
     def _fetch_currencies(self, ticker, interval, open_date, close_date):
@@ -240,7 +242,7 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         return {'changes': True, 'open_date': open_date, 'close_date': close_date}
 
     def _add_assets(self, ticker: str, interval: str, open_date, close_date):
-         """
+        """
         Adds the data for a specific asset to the database, applying necessary transformations.
 
         Parameters
@@ -254,8 +256,7 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         close_date : datetime
             The end date of the data range.
         """
-        changes_data = self._allow_changes(
-            ticker, interval, open_date, close_date)
+        changes_data = self._allow_changes(ticker, interval, open_date, close_date)
         if not changes_data['changes']:
             return
         ticker_data = self._check_index(ticker)
@@ -310,6 +311,8 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         pd.DataFrame
             A DataFrame containing the requested data.
         """
+        if interval not in AVAILABLE_TIME_FRAMES:
+            raise Exception("""The interval {} is not available!""".format(interval))
         today = pd.to_datetime(date.today())
         if close_date is None:
             close_date = today
