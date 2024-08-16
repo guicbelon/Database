@@ -171,7 +171,8 @@ class DatabaseComponents:
     
     def get_most_traded(self, br_tickers_raw=None, maximum_date=None, 
                         previous_days_to_consider: int = 30, 
-                        number_of_tickers: int = 100, filter: bool = True):
+                        number_of_tickers: int = 100, volume_filter:float=None,
+                        filter_etf_bdr: bool = True):
         """
         Retrieves the most traded Brazilian stock tickers based on trading volume within a specified date range.
         
@@ -185,7 +186,9 @@ class DatabaseComponents:
             The number of days prior to maximum_date to consider. Defaults to 30 days.
         number_of_tickers : int, optional
             The number of tickers to return. Defaults to 100.
-        filter : bool, optional
+        volume_filter : float, optional
+            The minimum volume threshold for a stock to be considered. Defaults to None.
+        filter_etf_bdr : bool, optional
             Whether to filter out ETFs and BDRs. Defaults to True.
         
         Returns
@@ -199,7 +202,7 @@ class DatabaseComponents:
         if br_tickers_raw is None:
             br_tickers_raw = self.get_brazilian_tickers()
         tickers_filtered = []
-        if filter:
+        if filter_etf_bdr:
             for ticker in br_tickers_raw:
                 try:
                     is_ETF_BDR = int(ticker[-2:])
@@ -217,10 +220,12 @@ class DatabaseComponents:
             tickers_filtered = br_tickers_raw          
         br_tickers = [ticker + ".SA" for ticker in tickers_filtered]
         df = yf.download(br_tickers, start=open_date,
-                        end=maximum_date, progress=False)
+                        end=maximum_date, progress=False, show_errors=False)
         volume_info = dict(df['Volume'].sum())
         ordered_volume = dict(
             sorted(volume_info.items(), key=lambda item: item[1], reverse=True))
+        if volume_filter is not None:
+            ordered_volume = {key: value for key, value in ordered_volume.items() if value >= volume_filter}
         tickers_raw = list(ordered_volume.keys())[:number_of_tickers]
         tickers = [ticker.replace(".SA", "") for ticker in tickers_raw]
         return tickers
