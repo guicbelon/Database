@@ -169,27 +169,22 @@ class DatabaseComponents:
         data = obj['stocks']
         return data
     
-    def get_most_traded(self, br_tickers_raw=None, maximum_date=None, 
+    def get_most_traded(self,ticker_class:str="stocks", maximum_date=None, 
                         previous_days_to_consider: int = 30, 
-                        number_of_tickers: int = 100, volume_filter:float=None,
-                        filter_etf_bdr: bool = True):
+                        volume_filter:float=None):
         """
         Retrieves the most traded Brazilian stock tickers based on trading volume within a specified date range.
         
         Parameters
         ----------
-        br_tickers_raw : list, optional
-            A list of raw Brazilian stock tickers. If not provided, it will be fetched using get_brazilian_tickers().
+        ticker_class: str, optional
+            The type of tickers to consider. Defaults to "stocks".
         maximum_date : datetime, optional
             The end date for the period to consider. Defaults to today's date.
         previous_days_to_consider : int, optional
             The number of days prior to maximum_date to consider. Defaults to 30 days.
-        number_of_tickers : int, optional
-            The number of tickers to return. Defaults to 100.
         volume_filter : float, optional
             The minimum volume threshold for a stock to be considered. Defaults to None.
-        filter_etf_bdr : bool, optional
-            Whether to filter out ETFs and BDRs. Defaults to True.
         
         Returns
         -------
@@ -199,25 +194,29 @@ class DatabaseComponents:
         if maximum_date is None:
             maximum_date = pd.to_datetime(date.today())
         open_date = maximum_date - timedelta(days=previous_days_to_consider)
-        if br_tickers_raw is None:
-            br_tickers_raw = self.get_brazilian_tickers()
+        br_tickers_raw = self.get_brazilian_tickers()
         tickers_filtered = []
-        if filter_etf_bdr:
-            for ticker in br_tickers_raw:
-                try:
-                    is_ETF_BDR = int(ticker[-2:])
-                    is_ETF_BDR = True
-                except:
-                    is_ETF_BDR = False
-                try:
-                    is_available = int(ticker[-1])
-                    is_available = True
-                except:
-                    is_available = False
-                if not is_ETF_BDR and is_available:
-                    tickers_filtered.append(ticker)
-        else:
-            tickers_filtered = br_tickers_raw          
+        for ticker in br_tickers_raw:
+            try:
+                index_ETF_BDR = int(ticker[-2:])
+                is_ETF_BDR = True
+            except:
+                is_ETF_BDR = False
+            try:
+                is_available = int(ticker[-1])
+                is_available = True
+            except:
+                is_available = False
+            if is_available:
+                if ticker_class.lower() == "stocks":
+                    if not is_ETF_BDR:
+                        tickers_filtered.append(ticker)
+                else:
+                    if is_ETF_BDR:
+                        if ticker_class.lower() == "etfs" and index_ETF_BDR == 11:
+                            tickers_filtered.append(ticker)
+                        elif ticker_class.lower() == "bdrs" and index_ETF_BDR == 34:
+                            tickers_filtered.append(ticker)
         br_tickers = [ticker + ".SA" for ticker in tickers_filtered]
         df = yf.download(br_tickers, start=open_date,
                         end=maximum_date, progress=False, show_errors=False)
@@ -226,10 +225,11 @@ class DatabaseComponents:
             sorted(volume_info.items(), key=lambda item: item[1], reverse=True))
         if volume_filter is not None:
             ordered_volume = {key: value for key, value in ordered_volume.items() if value >= volume_filter}
-        tickers_raw = list(ordered_volume.keys())[:number_of_tickers]
+        tickers_raw = list(ordered_volume.keys())
         tickers = [ticker.replace(".SA", "") for ticker in tickers_raw]
         return tickers
-
+    
+    
     def get_tickers_from_sector(self, sector_name: str = None):
         """
         Retrieves a list of stock tickers grouped by sector, optionally filtering by a specific sector.
@@ -267,3 +267,5 @@ class DatabaseComponents:
             return sector_data
         else:
             print(f"Request failed with status code {response.status_code}")
+            
+            
