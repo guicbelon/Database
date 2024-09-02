@@ -173,11 +173,11 @@ class Database(DatabaseComponents, metaclass = Singleton):
             ticker_yf = "^IXIC"
         close_to_seek = close_date + timedelta(days=10)
         candles = yf.download(tickers=ticker_yf,
-                              start=open_date, end=close_to_seek, progress=False)
+                              start=open_date, end=close_to_seek, progress=False, show_errors=False)
         if len(candles) == 0:
             ticker_yf = ticker
             candles = yf.download(tickers=ticker_yf,
-                                  start=open_date, end=close_to_seek, progress=False)
+                                  start=open_date, end=close_to_seek, progress=False, show_errors=False)
             if len(candles) == 0:
                 return False
         candles = candles.rename(
@@ -277,7 +277,7 @@ class Database(DatabaseComponents, metaclass = Singleton):
         ticker_to_fetch = splited_ticker[0]+splited_ticker[1]+'=X'
         days_to_seek = (pd.to_datetime(date.today()) - open_date).days + 10
         data = yf.download(
-            ticker_to_fetch, period=f"{str(days_to_seek)}d", progress=False)
+            ticker_to_fetch, period=f"{str(days_to_seek)}d", progress=False, show_errors=False)
         data = data.rename(
             columns={'Open': ticker+'_open', 'High': ticker + '_high',
                      'Low': ticker + '_low', 'Close': ticker + '_close',
@@ -653,11 +653,11 @@ class Database(DatabaseComponents, metaclass=Singleton):
             ticker_yf = "^IXIC"
         close_to_seek = close_date + timedelta(days=10)
         candles = yf.download(tickers=ticker_yf,
-                              start=open_date, end=close_to_seek, progress=False)
+                              start=open_date, end=close_to_seek, progress=False, show_errors=False)
         if len(candles) == 0:
             ticker_yf = ticker
             candles = yf.download(tickers=ticker_yf,
-                                  start=open_date, end=close_to_seek, progress=False)
+                                  start=open_date, end=close_to_seek, progress=False, show_errors=False)
             if len(candles) == 0:
                 return False
         candles = candles.rename(
@@ -748,7 +748,7 @@ class Database(DatabaseComponents, metaclass=Singleton):
         ticker_yf = ticker+'BRL=X'
         close_to_seek = close_date + timedelta(days=10)
         candles = yf.download(tickers=ticker_yf,
-                              start=open_date, end=close_to_seek, progress=False)
+                              start=open_date, end=close_to_seek, progress=False, show_errors=False)
         candles = candles.rename(
             columns={'Adj Close': ticker+'_close'})
         candles.index.names = ['date']

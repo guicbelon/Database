@@ -5,7 +5,7 @@ from .singleton import Singleton
 from .database_components import *
 from .info import *
 
-class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
+class MultiFrameDatabase(DatabaseComponents, metaclass = Singleton):
     def __init__(self)-> None:
         self._DATA = pd.DataFrame()
         self._seeken_dates = {}
@@ -63,11 +63,11 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
             ticker_yf = "^IXIC"
         close_to_seek = close_date + timedelta(days=10)
         candles = yf.download(tickers=ticker_yf,
-                              start=open_date, end=close_to_seek, interval=interval, progress=False)
+                              start=open_date, end=close_to_seek, interval=interval, progress=False, show_errors=False)
         if len(candles) == 0:
             ticker_yf = ticker
             candles = yf.download(tickers=ticker_yf,
-                                  start=open_date, end=close_to_seek, interval=interval, progress=False)
+                                  start=open_date, end=close_to_seek, interval=interval, progress=False, show_errors=False)
             if len(candles) == 0:
                 return False
         candles = candles.rename(
@@ -131,7 +131,7 @@ class IntradayDatabase(DatabaseComponents, metaclass = Singleton):
         ticker_to_fetch = splited_ticker[0]+splited_ticker[1]+'=X'
         days_to_seek = (pd.to_datetime(date.today()) - open_date).days + 10
         data = yf.download(
-            ticker_to_fetch, period=f"{str(days_to_seek)}d", interval=interval, progress=False)
+            ticker_to_fetch, period=f"{str(days_to_seek)}d", interval=interval, progress=False, show_errors=False)
         data = data.rename(
             columns={'Open': ticker+'_open', 'High': ticker + '_high',
                      'Low': ticker + '_low', 'Close': ticker + '_close',
